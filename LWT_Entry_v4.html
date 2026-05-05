@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LWT Entry Screen</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #0f0e0b; color: #e8e0c8; font-family: Arial, sans-serif; min-height: 100vh; }
+.header { background: #1a1810; border-bottom: 2px solid #d4a017; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+.header-title { font-size: 1rem; font-weight: 800; color: #f0c842; }
+.header-date { font-size: 0.78rem; color: #f0c842; font-weight: 700; }
+.operator-bar { background: #1e1c10; border-bottom: 1px solid #3a3620; padding: 10px 16px; }
+.operator-bar label { font-size: 0.7rem; color: #d4a017; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 6px; }
+.operator-bar select { width: 100%; background: #252318; border: 1px solid #d4a017; color: #f0c842; padding: 10px; border-radius: 8px; font-size: 0.95rem; font-weight: 700; }
+.btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 20px 16px; }
+.main-btn { border: none; border-radius: 16px; padding: 26px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); min-height: 130px; justify-content: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.btn-green  { background: linear-gradient(145deg,#1a6b3a,#27ae60); }
+.btn-pink   { background: linear-gradient(145deg,#8b2252,#e91e8c); }
+.btn-yellow { background: linear-gradient(145deg,#7a5c00,#d4a017); }
+.btn-blue   { background: linear-gradient(145deg,#1a4a7a,#2980b9); }
+.btn-icon { font-size: 2.2rem; }
+.btn-label { font-size: 0.95rem; font-weight: 800; color: #fff; text-align: center; line-height: 1.3; }
+.btn-sub { font-size: 0.6rem; color: rgba(255,255,255,0.75); text-align: center; }
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 999; overflow-y: auto; padding: 16px; }
+.modal.open { display: block; }
+.modal-box { background: #1a1810; border-radius: 16px; max-width: 500px; margin: 0 auto; overflow: hidden; }
+.modal-head { padding: 16px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3a3620; }
+.modal-title { font-size: 1rem; font-weight: 800; }
+.modal-close { background: #252318; border: 1px solid #3a3620; color: #e8e0c8; border-radius: 8px; padding: 8px 16px; font-size: 0.9rem; cursor: pointer; touch-action: manipulation; }
+.modal-body { padding: 16px; }
+.field-label { font-size: 0.8rem; color: #d4a017; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; margin-top: 12px; display: block; }
+select, input[type=number], input[type=text] { width: 100%; background: #252318; border: 1px solid #3a3620; color: #e8e0c8; padding: 12px; border-radius: 8px; font-size: 1rem; outline: none; -webkit-appearance: none; appearance: none; }
+input[type=number].gold { border-color: #d4a017; color: #f0c842; font-size: 1.2rem; font-weight: 700; }
+.save-btn { width: 100%; padding: 18px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 800; cursor: pointer; margin-top: 16px; color: #fff; font-family: Arial, sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; display: block; }
+.save-green  { background: linear-gradient(135deg,#1a6b3a,#27ae60); }
+.save-pink   { background: linear-gradient(135deg,#8b2252,#e91e8c); }
+.save-yellow { background: linear-gradient(135deg,#7a5c00,#d4a017); }
+.save-blue   { background: linear-gradient(135deg,#1a4a7a,#2980b9); }
+.recent-section { padding: 0 16px 16px; }
+.recent-title { font-size: 0.62rem; color: #9a9070; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; font-weight: 700; }
+.recent-item { background: #1a1810; border: 1px solid #3a3620; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; font-size: 0.78rem; color: #c8b870; }
+.status-bar { background: #1e1c10; border: 1px solid #3a3620; border-radius: 8px; padding: 10px 14px; margin: 0 16px 16px; font-size: 0.75rem; color: #9a9070; text-align: center; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #f0c842; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.stock-pill { display:inline-block; background:#1e2e1e; border:1px solid #27ae60; border-radius:6px; padding:4px 10px; font-size:0.78rem; color:#7be87b; margin-top:6px; }
+.stock-pill.low { border-color:#e74c3c; color:#ff8080; background:#2e1e1e; }
+.add-cust-btn { width:100%; padding:10px; border:1px dashed #2980b9; border-radius:8px; background:transparent; color:#5aacda; font-size:0.85rem; font-weight:700; cursor:pointer; margin-top:6px; touch-action:manipulation; }
+.new-cust-row { display:none; margin-top:8px; gap:8px; }
+.new-cust-row.show { display:flex; }
+.new-cust-row input { flex:1; }
+.new-cust-row button { padding:10px 14px; background:#27ae60; border:none; border-radius:8px; color:#fff; font-weight:800; cursor:pointer; touch-action:manipulation; }
+.deduct-info { background:#1a2a1a; border:1px solid #27ae60; border-radius:8px; padding:10px 12px; margin-top:10px; font-size:0.8rem; color:#7be87b; display:none; }
+.deduct-info.show { display:block; }
+.deduct-warn { background:#2a1a1a; border:1px solid #e74c3c; border-radius:8px; padding:10px 12px; margin-top:10px; font-size:0.8rem; color:#ff8080; display:none; }
+.deduct-warn.show { display:block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">🍯 LWT Entry</div>
+  <div class="header-date" id="headerDate"></div>
+</div>
+
+<div class="operator-bar">
+  <label>👤 யார் பதிவு செய்கிறார்? (Who is entering?)</label>
+  <select id="operatorName">
+    <option value="">-- தேர்வு செய்யவும் --</option>
+    <option value="Radha Reghu (Team Leader)">👩‍💼 Radha Reghu (Team Leader)</option>
+    <option value="Sunder (Technician)">🔧 Sunder (Technician)</option>
+    <option value="Honeycomb Martin (CEO)">👑 Honeycomb Martin (CEO)</option>
+  </select>
+</div>
+
+<div class="btn-grid">
+  <button class="main-btn btn-green" onclick="openM('hc')">
+    <span class="btn-icon">📦</span>
+    <span class="btn-label">HC Core வரவு</span>
+    <span class="btn-sub">கச்சா பொருள்</span>
+  </button>
+  <button class="main-btn btn-pink" onclick="openM('bd')">
+    <span class="btn-icon">🪵</span>
+    <span class="btn-label">Board உற்பத்தி</span>
+    <span class="btn-sub">தினசரி உற்பத்தி</span>
+  </button>
+  <button class="main-btn btn-yellow" onclick="openM('buf')">
+    <span class="btn-icon">📐</span>
+    <span class="btn-label">Buffer பஞ்சிங்</span>
+    <span class="btn-sub">இயந்திர உற்பத்தி</span>
+  </button>
+  <button class="main-btn btn-blue" onclick="openM('dsp')">
+    <span class="btn-icon">🚚</span>
+    <span class="btn-label">Dispatch அனுப்புதல்</span>
+    <span class="btn-sub">பொருள் வெளியேற்றம்</span>
+  </button>
+</div>
+
+<div class="status-bar" id="statusBar">Google Sheets-க்கு இணைக்கப்பட்டது ✅</div>
+
+<div class="recent-section">
+  <div class="recent-title">கடைசியாக சேர்க்கப்பட்டவை</div>
+  <div id="recentList"><div class="recent-item">பதிவுகள் இல்லை</div></div>
+</div>
+
+<!-- HC Core Modal -->
+<div class="modal" id="m-hc">
+  <div class="modal-box">
+    <div class="modal-head" style="border-top:4px solid #27ae60;">
+      <div class="modal-title" style="color:#27ae60;">📦 HC Core வரவு</div>
+      <button class="modal-close" onclick="closeM('hc')">✕ மூடு</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">📅 தேதி</label>
+      <select id="hc-date"></select>
+      <label class="field-label">📏 Cell அளவு</label>
+      <select id="hc-cell">
+        <option value="">-- தேர்வு --</option>
+        <option value="15mm Cell">15mm Cell</option>
+        <option value="21mm Cell">21mm Cell</option>
+      </select>
+      <label class="field-label">📐 தடிமன் (Thickness)</label>
+      <select id="hc-thk">
+        <option value="">-- தேர்வு --</option>
+        <option value="15">15 mm</option>
+        <option value="20">20 mm</option>
+        <option value="25">25 mm</option>
+        <option value="30">30 mm</option>
+        <option value="35">35 mm</option>
+        <option value="40">40 mm</option>
+        <option value="50">50 mm</option>
+      </select>
+      <label class="field-label">📦 அளவு (RM)</label>
+      <input type="number" id="hc-qty" class="gold" placeholder="0.0" min="0" step="0.1">
+      <button class="save-btn save-green" onclick="saveHC()">✅ சேமி — HC Core வரவு</button>
+    </div>
+  </div>
+</div>
+
+<!-- Board Modal -->
+<div class="modal" id="m-bd">
+  <div class="modal-box">
+    <div class="modal-head" style="border-top:4px solid #e91e8c;">
+      <div class="modal-title" style="color:#e91e8c;">🪵 Board உற்பத்தி</div>
+      <button class="modal-close" onclick="closeM('bd')">✕ மூடு</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">📅 தேதி</label>
+      <select id="bd-date"></select>
+      <label class="field-label">⏰ Shift</label>
+      <select id="bd-shift">
+        <option value="Shift 1 - Morning (9-1)">Shift 1 — காலை (9–1)</option>
+        <option value="Shift 2 - Afternoon (1-5)">Shift 2 — மதியம் (1–5)</option>
+        <option value="Shift 3 - Night (9-5)">Shift 3 — இரவு (9–5)</option>
+      </select>
+      <label class="field-label">📏 Cell அளவு</label>
+      <select id="bd-cell" onchange="calcHC()">
+        <option value="15mm Cell — 3.3 RM/board">15mm Cell (3.3 RM/board)</option>
+        <option value="21mm Cell — 2.8 RM/board">21mm Cell (2.8 RM/board)</option>
+      </select>
+      <label class="field-label">📐 தடிமன் (Thickness mm)</label>
+      <select id="bd-thk">
+        <option value="15">15 mm</option>
+        <option value="20">20 mm</option>
+        <option value="25">25 mm</option>
+        <option value="30">30 mm</option>
+        <option value="35">35 mm</option>
+        <option value="40">40 mm</option>
+        <option value="50">50 mm</option>
+      </select>
+      <label class="field-label">🪵 Boards செய்தது</label>
+      <input type="number" id="bd-boards" class="gold" placeholder="எண்ணிக்கை" oninput="calcHC()">
+      <label class="field-label">🧮 HC Core பயன்படுத்தியது (RM)</label>
+      <input type="number" id="bd-hccore" readonly style="background:#0f0e0b;color:#f0c842;border-color:#d4a017;font-weight:800;">
+      <button class="save-btn save-pink" onclick="saveBD()">✅ சேமி — Board உற்பத்தி</button>
+    </div>
+  </div>
+</div>
+
+<!-- Buffer Modal -->
+<div class="modal" id="m-buf">
+  <div class="modal-box">
+    <div class="modal-head" style="border-top:4px solid #d4a017;">
+      <div class="modal-title" style="color:#d4a017;">📐 Buffer பஞ்சிங்</div>
+      <button class="modal-close" onclick="closeM('buf')">✕ மூடு</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">📅 தேதி</label>
+      <select id="buf-date"></select>
+      <label class="field-label">⏰ Shift</label>
+      <select id="buf-shift">
+        <option value="Shift 1 - Morning (9-1)">Shift 1 — காலை (9–1)</option>
+        <option value="Shift 2 - Afternoon (1-5)">Shift 2 — மதியம் (1–5)</option>
+        <option value="Shift 3 - Night (9-5)">Shift 3 — இரவு (9–5)</option>
+      </select>
+      <label class="field-label">📦 Buffer வகை</label>
+      <select id="buf-type">
+        <option value="">-- தேர்வு --</option>
+      </select>
+      <button class="add-cust-btn" style="border-color:#d4a017;color:#d4a017;" onclick="toggleNewBufType()">➕ புதிய Buffer வகை சேர்க்க</button>
+      <div class="new-cust-row" id="newBufTypeRow">
+        <input type="text" id="newBufTypeName" placeholder="Buffer வகை பெயர் உள்ளிடவும்">
+        <button style="background:#d4a017;" onclick="addNewBufType()">சேர்</button>
+      </div>
+      <label class="field-label">✅ செய்தது (Pcs)</label>
+      <input type="number" id="buf-qty" class="gold" placeholder="Pcs">
+      <button class="save-btn save-yellow" onclick="saveBUF()">✅ சேமி — Buffer பஞ்சிங்</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dispatch Modal -->
+<div class="modal" id="m-dsp">
+  <div class="modal-box">
+    <div class="modal-head" style="border-top:4px solid #2980b9;">
+      <div class="modal-title" style="color:#2980b9;">🚚 Dispatch அனுப்புதல்</div>
+      <button class="modal-close" onclick="closeM('dsp')">✕ மூடு</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">📅 தேதி</label>
+      <select id="dsp-date"></select>
+      <label class="field-label">🏢 வாடிக்கையாளர்</label>
+      <select id="dsp-customer" onchange="checkStock()">
+        <option value="">-- தேர்வு --</option>
+      </select>
+      <button class="add-cust-btn" onclick="toggleNewCust()">➕ புதிய வாடிக்கையாளர் சேர்க்க</button>
+      <div class="new-cust-row" id="newCustRow">
+        <input type="text" id="newCustName" placeholder="Customer பெயர் உள்ளிடவும்">
+        <button onclick="addNewCustomer()">சேர்</button>
+      </div>
+      <label class="field-label">📦 Buffer வகை</label>
+      <select id="dsp-type" onchange="checkStock()">
+        <option value="">-- தேர்வு --</option>
+      </select>
+      <div id="stockDisplay"></div>
+      <div class="deduct-info" id="deductInfo"></div>
+      <div class="deduct-warn" id="deductWarn"></div>
+      <label class="field-label">🔢 அளவு (Qty)</label>
+      <input type="number" id="dsp-qty" class="gold" placeholder="Pcs" oninput="calcDSP()">
+      <label class="field-label">💰 Rate / pc (₹)</label>
+      <input type="number" id="dsp-rate" placeholder="0.00" step="0.01" oninput="calcDSP()">
+      <label class="field-label">🧾 Invoice No. (optional)</label>
+      <input type="text" id="dsp-inv" placeholder="INV-001">
+      <div id="dsp-calc" style="background:#1e1c10;border:1px solid #3a3620;border-radius:8px;padding:12px;margin-top:12px;font-size:0.85rem;color:#c8b870;min-height:40px;"></div>
+      <button class="save-btn save-blue" onclick="saveDSP()">✅ சேமி — Dispatch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby7rHQoDcp6hOPXktkHEpKEGoHH5XhvxdrPKyfkXKNqxrPKorfideNK1GLL44pRs0_yxQ/exec';
+
+function gid(id) { return document.getElementById(id); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function todayISO() {
+  var t = new Date();
+  return t.getFullYear()+'-'+(String(t.getMonth()+1).padStart(2,'0'))+'-'+(String(t.getDate()).padStart(2,'0'));
+}
+function fmtDisp(iso) {
+  if (!iso) return '';
+  var p = iso.split('-');
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+function getLast3Dates() {
+  var dates = [];
+  var t = new Date();
+  for (var i=0; i<3; i++) {
+    var d = new Date(t);
+    d.setDate(t.getDate()-i);
+    var iso = d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'))+'-'+(String(d.getDate()).padStart(2,'0'));
+    dates.push(iso);
+  }
+  return dates;
+}
+function fillDateSelect(id) {
+  var sel = gid(id);
+  if (!sel) return;
+  sel.innerHTML = '';
+  var dates = getLast3Dates();
+  var labels = ['இன்று','நேற்று','முந்தைய'];
+  dates.forEach(function(iso, i) {
+    var opt = document.createElement('option');
+    opt.value = iso;
+    opt.text = labels[i]+' '+fmtDisp(iso);
+    if (i===0) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function setStatus(msg, color, loading) {
+  var s = gid('statusBar');
+  s.innerHTML = (loading ? '<span class="spinner"></span>' : '') + msg;
+  s.style.color = color || '#9a9070';
+}
+
+function openM(name) {
+  fillDateSelect(name+'-date');
+  if (name === 'dsp') { loadCustomers(); loadBufTypes('dsp-type',''); }
+  if (name === 'buf') { loadBufTypes('buf-type',''); }
+  gid('m-'+name).classList.add('open');
+}
+function closeM(name) {
+  gid('m-'+name).classList.remove('open');
+  if (name === 'dsp') {
+    gid('stockDisplay').innerHTML = '';
+    gid('deductInfo').className = 'deduct-info';
+    gid('deductWarn').className = 'deduct-warn';
+    gid('newCustRow').className = 'new-cust-row';
+    gid('newCustName').value = '';
+  }
+  if (name === 'buf') {
+    gid('newBufTypeRow').className = 'new-cust-row';
+    gid('newBufTypeName').value = '';
+  }
+}
+
+gid('headerDate').textContent = fmtDisp(todayISO());
+
+function checkOperator() {
+  var op = gid('operatorName').value;
+  if (!op) { alert('முதலில் பெயர் தேர்வு செய்யவும்!\nSelect your name first!'); return null; }
+  return op;
+}
+
+// ── BUFFER TYPE MANAGEMENT ───────────────────────────────────
+var DEFAULT_BUF_TYPES = ['TOP','BOTTOM','CORNER','FRONT & BACK','FRONT & BACK 30MM','STANADYNE BUFFER','DIVINE BUFFER','Inner Buffer','Joompac'];
+
+function getBufTypes() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('lwt_bufTypes') || '[]');
+    var all = DEFAULT_BUF_TYPES.slice();
+    saved.forEach(function(t){ if (all.indexOf(t) === -1) all.push(t); });
+    return all;
+  } catch(e) { return DEFAULT_BUF_TYPES.slice(); }
+}
+
+function saveNewBufType(name) {
+  try {
+    var saved = JSON.parse(localStorage.getItem('lwt_bufTypes') || '[]');
+    if (saved.indexOf(name) === -1) saved.push(name);
+    localStorage.setItem('lwt_bufTypes', JSON.stringify(saved));
+  } catch(e) {}
+}
+
+function loadBufTypes(selId, currentVal) {
+  var sel = gid(selId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- தேர்வு --</option>';
+  getBufTypes().forEach(function(t) {
+    var opt = document.createElement('option');
+    opt.value = t; opt.text = t;
+    if (t === currentVal) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function toggleNewBufType() {
+  var row = gid('newBufTypeRow');
+  row.classList.toggle('show');
+  if (row.classList.contains('show')) gid('newBufTypeName').focus();
+}
+
+function addNewBufType() {
+  var name = gid('newBufTypeName').value.trim().toUpperCase();
+  if (!name) { alert('Buffer வகை பெயர் உள்ளிடவும்!'); return; }
+  saveNewBufType(name);
+  loadBufTypes('buf-type', name);
+  loadBufTypes('dsp-type', gid('dsp-type').value);
+  gid('buf-type').value = name;
+  gid('newBufTypeName').value = '';
+  gid('newBufTypeRow').classList.remove('show');
+  setStatus('✅ புதிய Buffer வகை சேர்க்கப்பட்டது: ' + name, '#d4a017');
+}
+// Stock is updated: +qty when Buffer Punching saved, -qty when Dispatch saved
+function getStock() {
+  try { return JSON.parse(localStorage.getItem('lwt_bufStock') || '{}'); } catch(e) { return {}; }
+}
+function saveStock(stock) {
+  localStorage.setItem('lwt_bufStock', JSON.stringify(stock));
+}
+function addStock(type, qty) {
+  var stock = getStock();
+  stock[type] = (stock[type] || 0) + qty;
+  saveStock(stock);
+}
+function deductStock(type, qty) {
+  var stock = getStock();
+  stock[type] = (stock[type] || 0) - qty;
+  if (stock[type] < 0) stock[type] = 0;
+  saveStock(stock);
+}
+function getStockFor(type) {
+  return getStock()[type] || 0;
+}
+
+// Show current stock when buffer type selected in Dispatch
+function checkStock() {
+  var type = gid('dsp-type').value;
+  var sdEl = gid('stockDisplay');
+  var diEl = gid('deductInfo');
+  var dwEl = gid('deductWarn');
+  diEl.className = 'deduct-info';
+  dwEl.className = 'deduct-warn';
+  if (!type) { sdEl.innerHTML = ''; return; }
+  var stock = getStockFor(type);
+  var isLow = stock < 500;
+  sdEl.innerHTML = '<span class="stock-pill'+(isLow?' low':'')+'">📦 Stock: '+stock.toLocaleString()+' pcs'+(isLow?' ⚠️ குறைவு':' ✅')+'</span>';
+  if (stock > 0) {
+    diEl.className = 'deduct-info show';
+    diEl.innerHTML = '✅ Dispatch சேமிக்கும்போது <strong>'+type+'</strong> stock இலிருந்து தானாக கழிக்கப்படும்.';
+  } else {
+    dwEl.className = 'deduct-warn show';
+    dwEl.innerHTML = '⚠️ <strong>'+type+'</strong> stock இல்லை! Buffer Punching முதலில் சேர்க்கவும்.';
+  }
+}
+
+// ── CUSTOMER MANAGEMENT ──────────────────────────────────────
+var DEFAULT_CUSTOMERS = [
+  'Butterfly Gandhimathi','Stanadyne India','Nefab India',
+  'MGM Varvel Power','Divine Foods','Poly Mak','KCIPL','Agilitive','Agrifacuture India'
+];
+
+function getCustomers() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('lwt_customers') || '[]');
+    // merge defaults + saved new ones (avoid duplicates)
+    var all = DEFAULT_CUSTOMERS.slice();
+    saved.forEach(function(c){ if (all.indexOf(c) === -1) all.push(c); });
+    return all;
+  } catch(e) { return DEFAULT_CUSTOMERS.slice(); }
+}
+
+function saveNewCustomer(name) {
+  try {
+    var saved = JSON.parse(localStorage.getItem('lwt_customers') || '[]');
+    if (saved.indexOf(name) === -1) saved.push(name);
+    localStorage.setItem('lwt_customers', JSON.stringify(saved));
+  } catch(e) {}
+}
+
+function loadCustomers() {
+  var sel = gid('dsp-customer');
+  var current = sel.value;
+  sel.innerHTML = '<option value="">-- தேர்வு --</option>';
+  getCustomers().forEach(function(c) {
+    var opt = document.createElement('option');
+    opt.value = c; opt.text = c;
+    if (c === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function toggleNewCust() {
+  var row = gid('newCustRow');
+  row.classList.toggle('show');
+  if (row.classList.contains('show')) gid('newCustName').focus();
+}
+
+function addNewCustomer() {
+  var name = gid('newCustName').value.trim();
+  if (!name) { alert('Customer பெயர் உள்ளிடவும்!'); return; }
+  saveNewCustomer(name);
+  loadCustomers();
+  gid('dsp-customer').value = name;
+  gid('newCustName').value = '';
+  gid('newCustRow').classList.remove('show');
+  setStatus('✅ புதிய customer சேர்க்கப்பட்டது: ' + name, '#27ae60');
+}
+
+
+// Send to Google Sheets
+function sendToSheets(action, row, successMsg, resetFn) {
+  setStatus('Google Sheets-க்கு அனுப்புகிறது...', '#f0c842', true);
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: action, row: row })
+  }).then(function() {
+    setStatus('✅ ' + successMsg + ' — Saved to Google Sheets!', '#27ae60');
+    addRecent(successMsg);
+    if (resetFn) resetFn();
+  }).catch(function(err) {
+    setStatus('⚠️ பிழை — ' + err.message, '#e74c3c');
+    alert('Save failed. Check internet connection.');
+  });
+}
+
+var recentItems = [];
+function addRecent(text) {
+  recentItems.unshift({ t: text, d: fmtDisp(todayISO()) });
+  if (recentItems.length > 8) recentItems.pop();
+  renderRecent();
+}
+function renderRecent() {
+  var html = recentItems.length
+    ? recentItems.map(function(i){ return '<div class="recent-item">'+i.t+' · '+i.d+'</div>'; }).join('')
+    : '<div class="recent-item">பதிவுகள் இல்லை</div>';
+  gid('recentList').innerHTML = html;
+}
+
+// SAVE FUNCTIONS
+function saveHC() {
+  var op = checkOperator(); if (!op) return;
+  var date = gid('hc-date').value || todayISO();
+  var cell = gid('hc-cell').value;
+  var thk = gid('hc-thk').value;
+  var qty = parseFloat(gid('hc-qty').value)||0;
+  if (!cell) { alert('Cell அளவு தேர்வு செய்யவும்!'); return; }
+  if (qty<=0) { alert('அளவு உள்ளிடவும்!'); return; }
+  var row = { id: uid(), date: date, cellSize: cell, thickness: thk, inQty: qty, unit: 'RM', rate: 0, createdBy: op };
+  sendToSheets('hccore', row, '📦 HC Core '+qty+' RM', function() {
+    gid('hc-qty').value=''; gid('hc-cell').selectedIndex=0; gid('hc-thk').selectedIndex=0;
+    closeM('hc');
+  });
+}
+
+function calcHC() {
+  var boards = parseFloat(gid('bd-boards').value)||0;
+  var cell = gid('bd-cell').value;
+  var rm = cell.includes('21mm') ? 2.8 : 3.3;
+  gid('bd-hccore').value = boards>0 ? (boards*rm).toFixed(1) : '';
+}
+
+function saveBD() {
+  var op = checkOperator(); if (!op) return;
+  var date = gid('bd-date').value || todayISO();
+  var shift = gid('bd-shift').value;
+  var cell = gid('bd-cell').value;
+  var thk = gid('bd-thk').value;
+  var boards = parseFloat(gid('bd-boards').value)||0;
+  var hc = parseFloat(gid('bd-hccore').value)||0;
+  if (boards<=0) { alert('Boards எண்ணிக்கை உள்ளிடவும்!'); return; }
+  var row = { id: uid(), date: date, shift: shift, cellSize: cell, thickness: thk, boards: boards, hcCoreUsed: hc, createdBy: op };
+  sendToSheets('boards', row, '🪵 Board '+boards+' pcs', function() {
+    gid('bd-boards').value=''; gid('bd-hccore').value='';
+    closeM('bd');
+  });
+}
+
+function saveBUF() {
+  var op = checkOperator(); if (!op) return;
+  var date = gid('buf-date').value || todayISO();
+  var shift = gid('buf-shift').value;
+  var type = gid('buf-type').value;
+  var qty = parseFloat(gid('buf-qty').value)||0;
+  if (!type) { alert('Buffer வகை தேர்வு செய்யவும்!'); return; }
+  if (qty<=0) { alert('அளவு உள்ளிடவும்!'); return; }
+  var row = { id: uid(), date: date, shift: shift, bufferType: type, pcsProduced: qty, createdBy: op };
+  sendToSheets('buffers', row, '📐 '+type+' '+qty+' pcs', function() {
+    addStock(type, qty);
+    gid('buf-qty').value=''; gid('buf-type').selectedIndex=0;
+    closeM('buf');
+  });
+}
+
+function calcDSP() {
+  var qty = parseFloat(gid('dsp-qty').value)||0;
+  var rate = parseFloat(gid('dsp-rate').value)||0;
+  var tax = qty*rate;
+  var gst = tax*0.18;
+  var total = tax+gst;
+  if (qty>0) {
+    var type = gid('dsp-type').value;
+    var stock = type ? getStockFor(type) : 0;
+    var after = stock - qty;
+    var warn = after < 0 ? ' ⚠️ Stock பற்றாக்குறை!' : ' (Stock பிறகு: '+after.toLocaleString()+' pcs)';
+    gid('dsp-calc').innerHTML = 'Taxable: ₹'+tax.toFixed(2)+' | GST 18%: ₹'+gst.toFixed(2)+' | <strong style="color:#f0c842;">Total: ₹'+total.toFixed(2)+'</strong><br><span style="font-size:0.75rem;color:#7be87b;">'+warn+'</span>';
+  }
+}
+
+function saveDSP() {
+  var op = checkOperator(); if (!op) return;
+  var date = gid('dsp-date').value || todayISO();
+  var customer = gid('dsp-customer').value;
+  var type = gid('dsp-type').value;
+  var qty = parseFloat(gid('dsp-qty').value)||0;
+  var rate = parseFloat(gid('dsp-rate').value)||0;
+  var inv = gid('dsp-inv').value||'';
+  if (!customer) { alert('வாடிக்கையாளர் தேர்வு செய்யவும்!'); return; }
+  if (!type) { alert('Buffer வகை தேர்வு செய்யவும்!'); return; }
+  if (qty<=0) { alert('அளவு உள்ளிடவும்!'); return; }
+
+  // Stock check warning (not a block — just confirm)
+  var stock = getStockFor(type);
+  if (qty > stock) {
+    var go = confirm('⚠️ Stock பற்றாக்குறை!\n'+type+' stock: '+stock+' pcs\nDispatch: '+qty+' pcs\n\nதொடரவா? (Continue anyway?)');
+    if (!go) return;
+  }
+
+  var tax=qty*rate, gst=tax*0.18, total=tax+gst;
+  var stockBefore = getStockFor(type);
+  var row = { id: uid(), date: date, customer: customer, bufferType: type,
+    qtyDispatched: qty, rate: rate, taxableAmount: tax, gstAmount: gst,
+    grandTotal: total, invoiceNumber: inv, stockBefore: stockBefore,
+    stockAfter: Math.max(0, stockBefore-qty), createdBy: op };
+
+  sendToSheets('dispatch', row, '🚚 '+customer+' '+qty+' pcs', function() {
+    // ✅ DEDUCT from stock
+    deductStock(type, qty);
+    gid('dsp-qty').value=''; gid('dsp-rate').value=''; gid('dsp-inv').value='';
+    gid('dsp-customer').selectedIndex=0; gid('dsp-type').selectedIndex=0;
+    gid('dsp-calc').innerHTML='';
+    gid('stockDisplay').innerHTML='';
+    gid('deductInfo').className='deduct-info';
+    gid('deductWarn').className='deduct-warn';
+    closeM('dsp');
+  });
+}
+
+renderRecent();
+</script>
+</body>
+</html>
