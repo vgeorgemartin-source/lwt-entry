@@ -1,0 +1,393 @@
+// ══════════════════════════════════════════════════════════════════
+//  LWT ERP — Google Apps Script  v3
+//  Light Weight Technology Pvt Ltd
+//
+//  FIXES in v3:
+//  • HCCore now stores: Date | CellSize | Thickness | In(RM) | Unit | Rate | CreatedBy
+//  • Boards now stores: Date | Shift | CellSize | Thickness | Boards | HCCoreUsed | CreatedBy
+//  • Dispatch stores: Date | Customer | BufferName | QtyDispatched | Rate | InvoiceNo | CreatedBy
+//  • Buffers stores: Date | Shift | BufferType | PcsProduced | CreatedBy
+//  • Buffer Stock Summary auto-calculates from Buffers + Dispatch tabs
+//
+//  HOW TO INSTALL:
+//  1. Open "LWT ERP DATA spreadsheet"
+//  2. Extensions → Apps Script
+//  3. Replace ALL existing code with this → 💾 Save
+//  4. Run → setupSheetHeaders → Authorise when prompted
+//  5. Reload Google Sheet → "🍯 LWT Stock" menu appears
+//
+//  IMPORTANT: Run "🍯 LWT Stock → 🔧 Setup Sheet Headers" ONCE after install
+//  This fixes all column headers so new entries land in the right columns.
+// ══════════════════════════════════════════════════════════════════
+
+var SHEET_BOARDS   = 'Boards';
+var SHEET_BUFFERS  = 'Buffers';
+var SHEET_HCCORE   = 'HCCore';
+var SHEET_DISPATCH = 'Dispatch';
+var SHEET_STOCK    = 'Buffer Stock';
+var LOW_STOCK_LIMIT = 500;
+
+// ── CORRECT HEADERS FOR EACH SHEET ────────────────────────────────
+var HEADERS = {
+  Boards:   ['Date','Shift','CellSize','Thickness(mm)','Boards','HCCoreUsed(RM)','CreatedBy'],
+  Buffers:  ['Date','Shift','BufferType','PcsProduced','CreatedBy'],
+  HCCore:   ['Date','CellSize','Thickness(mm)','In(RM)','Unit','Rate','CreatedBy'],
+  Dispatch: ['Date','Customer','BufferName','QtyDispatched','RatePerPc','TaxableAmt','GST18%','GrandTotal','InvoiceNo','StockBefore','StockAfter','CreatedBy']
+};
+
+
+// ══════════════════════════════════════════════════════════════════
+//  MENU
+// ══════════════════════════════════════════════════════════════════
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('🍯 LWT Stock')
+    .addItem('🔄 Update Buffer Stock Now',     'updateBufferStock')
+    .addSeparator()
+    .addItem('🔧 Setup Sheet Headers (Run Once)', 'setupSheetHeaders')
+    .addSeparator()
+    .addItem('⏰ Set Auto-Refresh (Hourly)',    'setHourlyTrigger')
+    .addItem('❌ Remove Auto-Refresh',          'removeAllTriggers')
+    .addToUi();
+}
+
+function createBufferStockMenu() { onOpen(); }
+
+
+// ══════════════════════════════════════════════════════════════════
+//  SETUP SHEET HEADERS  — Run once after install
+//  Rewrites row 1 of each sheet with correct column names
+//  Does NOT delete existing data rows
+// ══════════════════════════════════════════════════════════════════
+function setupSheetHeaders() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ui = SpreadsheetApp.getUi();
+  var results = [];
+
+  Object.keys(HEADERS).forEach(function(sheetName) {
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      results.push('⚠️ Sheet "' + sheetName + '" not found — skipped');
+      return;
+    }
+    var hdrs = HEADERS[sheetName];
+    // Write headers to row 1
+    sheet.getRange(1, 1, 1, hdrs.length).setValues([hdrs]);
+    // Style header row
+    sheet.getRange(1, 1, 1, hdrs.length)
+      .setBackground('#2d2d00')
+      .setFontColor('#f0c842')
+      .setFontWeight('bold')
+      .setFontSize(9)
+      .setHorizontalAlignment('center');
+    sheet.setFrozenRows(1);
+    results.push('✅ ' + sheetName + ' — headers set (' + hdrs.join(', ') + ')');
+  });
+
+  ui.alert('🔧 Sheet Headers Setup Complete!\n\n' + results.join('\n') +
+    '\n\nNew entries from the mobile app will now include CellSize and Thickness correctly.');
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  doPost — Receives data from LWT_Entry mobile app
+// ══════════════════════════════════════════════════════════════════
+function doPost(e) {
+  try {
+    var payload = JSON.parse(e.postData.contents);
+    var action  = payload.action;
+    var row     = payload.row || {};
+    var ss      = SpreadsheetApp.getActiveSpreadsheet();
+
+    if      (action === 'hccore')   appendHCCore(ss, row);
+    else if (action === 'boards')   appendBoards(ss, row);
+    else if (action === 'buffers')  appendBuffers(ss, row);
+    else if (action === 'dispatch') appendDispatch(ss, row);
+    else throw new Error('Unknown action: ' + action);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', action: action }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch(err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  APPEND FUNCTIONS — Each maps mobile app fields → sheet columns
+// ══════════════════════════════════════════════════════════════════
+
+// HCCore: Date | CellSize | Thickness(mm) | In(RM) | Unit | Rate | CreatedBy
+function appendHCCore(ss, r) {
+  var sheet = ss.getSheetByName(SHEET_HCCORE);
+  if (!sheet) return;
+  ensureHeaders(sheet, HEADERS.HCCore);
+  sheet.appendRow([
+    fmtDate(r.date       || ''),
+    r.cellSize            || '',   // e.g. "15mm Cell"
+    r.thickness           || '',   // e.g. "18" (mm)
+    parseFloat(r.inQty   || 0),    // RM consumed
+    r.unit                || 'RM',
+    parseFloat(r.rate    || 0),
+    r.createdBy           || ''
+  ]);
+}
+
+// Boards: Date | Shift | CellSize | Thickness(mm) | Boards | HCCoreUsed(RM) | CreatedBy
+function appendBoards(ss, r) {
+  var sheet = ss.getSheetByName(SHEET_BOARDS);
+  if (!sheet) return;
+  ensureHeaders(sheet, HEADERS.Boards);
+  sheet.appendRow([
+    fmtDate(r.date          || ''),
+    r.shift                  || '',
+    r.cellSize               || '',   // e.g. "15mm Cell"
+    r.thickness              || '',   // e.g. "18"
+    parseFloat(r.boards     || 0),
+    parseFloat(r.hcCoreUsed || 0),
+    r.createdBy              || ''
+  ]);
+}
+
+// Buffers: Date | Shift | BufferType | PcsProduced | CreatedBy
+function appendBuffers(ss, r) {
+  var sheet = ss.getSheetByName(SHEET_BUFFERS);
+  if (!sheet) return;
+  ensureHeaders(sheet, HEADERS.Buffers);
+  sheet.appendRow([
+    fmtDate(r.date            || ''),
+    r.shift                    || '',
+    (r.bufferType             || '').toUpperCase().trim(),
+    parseFloat(r.pcsProduced  || 0),
+    r.createdBy                || ''
+  ]);
+}
+
+// Dispatch: Date | Customer | BufferName | QtyDispatched | RatePerPc | Taxable | GST | GrandTotal | InvoiceNo | StockBefore | StockAfter | CreatedBy
+function appendDispatch(ss, r) {
+  var sheet = ss.getSheetByName(SHEET_DISPATCH);
+  if (!sheet) return;
+  ensureHeaders(sheet, HEADERS.Dispatch);
+
+  var qty  = parseFloat(r.qtyDispatched || 0);
+  var rate = parseFloat(r.rate         || 0);
+  var tax  = parseFloat(r.taxableAmount || qty * rate);
+  var gst  = parseFloat(r.gstAmount    || tax * 0.18);
+  var tot  = parseFloat(r.grandTotal   || tax + gst);
+
+  sheet.appendRow([
+    fmtDate(r.date          || ''),
+    r.customer               || '',
+    (r.bufferType           || r.bufferName || '').toUpperCase().trim(),
+    qty,
+    rate,
+    parseFloat(tax.toFixed(2)),
+    parseFloat(gst.toFixed(2)),
+    parseFloat(tot.toFixed(2)),
+    r.invoiceNumber          || '',
+    parseFloat(r.stockBefore || 0),
+    parseFloat(r.stockAfter  || 0),
+    r.createdBy              || ''
+  ]);
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  BUFFER STOCK SUMMARY
+// ══════════════════════════════════════════════════════════════════
+function updateBufferStock() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ── READ BUFFERS ──
+  var bufSheet = ss.getSheetByName(SHEET_BUFFERS);
+  if (!bufSheet) { SpreadsheetApp.getUi().alert('❌ Buffers sheet not found!'); return; }
+  var bufData = bufSheet.getDataRange().getValues();
+  var bHdr    = normaliseHeaders(bufData[0]);
+  var bTypeI  = colIdx(bHdr, ['buffertype','type'],        2);  // col C
+  var bQtyI   = colIdx(bHdr, ['pcsproduced','qty','pcs'],  3);  // col D
+  var bDateI  = colIdx(bHdr, ['date'],                     0);  // col A
+
+  var punchMap = {};
+  for (var i = 1; i < bufData.length; i++) {
+    var br   = bufData[i];
+    var type = String(br[bTypeI] || '').trim().toUpperCase();
+    if (!type) continue;
+    var qty  = parseFloat(br[bQtyI] || 0);
+    if (isNaN(qty) || qty <= 0) continue;
+    var dt   = fmtDate(br[bDateI]);
+    if (!punchMap[type]) punchMap[type] = { qty: 0, lastDate: '', displayName: type };
+    punchMap[type].qty += qty;
+    if (dt > punchMap[type].lastDate) punchMap[type].lastDate = dt;
+  }
+
+  // ── READ DISPATCH ──
+  var dspSheet = ss.getSheetByName(SHEET_DISPATCH);
+  if (!dspSheet) { SpreadsheetApp.getUi().alert('❌ Dispatch sheet not found!'); return; }
+  var dspData = dspSheet.getDataRange().getValues();
+  var dHdr    = normaliseHeaders(dspData[0]);
+  var dBufI   = colIdx(dHdr, ['buffername','buffertype','buffer'], 2);  // col C
+  var dQtyI   = colIdx(dHdr, ['qtydispatched','qty'],             3);  // col D
+  var dCustI  = colIdx(dHdr, ['customer'],                        1);  // col B
+  var dDateI  = colIdx(dHdr, ['date'],                            0);  // col A
+  var dInvI   = colIdx(dHdr, ['invoiceno','invoice'],             8);  // col I
+
+  var dispMap = {};
+  for (var j = 1; j < dspData.length; j++) {
+    var dr  = dspData[j];
+    var buf = String(dr[dBufI] || '').trim().toUpperCase();
+    if (!buf) continue;
+    var dq  = parseFloat(dr[dQtyI] || 0);
+    if (isNaN(dq) || dq <= 0) continue;
+    var dd  = fmtDate(dr[dDateI]);
+    if (!dispMap[buf]) dispMap[buf] = { qty: 0, lastDate: '', lastCustomer: '', lastInvoice: '' };
+    dispMap[buf].qty += dq;
+    if (dd > dispMap[buf].lastDate) {
+      dispMap[buf].lastDate     = dd;
+      dispMap[buf].lastCustomer = String(dr[dCustI] || '').trim();
+      dispMap[buf].lastInvoice  = String(dr[dInvI]  || '').trim();
+    }
+  }
+
+  // ── MERGE ──
+  var allKeys = {};
+  Object.keys(punchMap).forEach(function(k) { allKeys[k] = true; });
+  Object.keys(dispMap).forEach(function(k)  { allKeys[k] = true; });
+
+  var rows = [];
+  Object.keys(allKeys).sort().forEach(function(key) {
+    var p   = punchMap[key] || { qty: 0, lastDate: '', displayName: key };
+    var d   = dispMap[key]  || { qty: 0, lastDate: '', lastCustomer: '', lastInvoice: '' };
+    var bal = p.qty - d.qty;
+    rows.push([
+      p.displayName, p.qty, d.qty, bal,
+      p.lastDate, d.lastDate, d.lastCustomer, d.lastInvoice,
+      bal <= 0 ? 'FULLY DISPATCHED' : bal < LOW_STOCK_LIMIT ? 'LOW STOCK' : 'IN STOCK'
+    ]);
+  });
+
+  var totP = rows.reduce(function(s,r){ return s+r[1]; }, 0);
+  var totD = rows.reduce(function(s,r){ return s+r[2]; }, 0);
+  var totB = rows.reduce(function(s,r){ return s+r[3]; }, 0);
+
+  // ── WRITE OUTPUT ──
+  var out = ss.getSheetByName(SHEET_STOCK) || ss.insertSheet(SHEET_STOCK);
+  out.clearContents(); out.clearFormats();
+
+  var ts = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm');
+  setCell(out,'A1','LWT — Buffer Stock Summary','#1a1a00','#f0c842',13,true);
+  setCell(out,'A2','Light Weight Technology Pvt Ltd  |  Synced: '+ts+' IST','#1a1a00','#999955',8,false);
+  out.getRange('A1:I1').merge();
+  out.getRange('A2:I2').merge();
+
+  var hdrs = ['Buffer Type','Total Punched','Total Dispatched','Balance Stock',
+              'Last Punch Date','Last Dispatch Date','Last Customer','Last Invoice','Status'];
+  out.getRange(4,1,1,hdrs.length).setValues([hdrs]);
+  out.getRange(4,1,1,hdrs.length)
+    .setBackground('#2d2d00').setFontColor('#f0c842')
+    .setFontWeight('bold').setFontSize(9).setHorizontalAlignment('center');
+
+  if (rows.length > 0) {
+    out.getRange(5,1,rows.length,hdrs.length).setValues(rows);
+    for (var r = 0; r < rows.length; r++) {
+      var bal    = rows[r][3];
+      var rn     = 5 + r;
+      var bg     = bal <= 0 ? '#2a0000' : bal < LOW_STOCK_LIMIT ? '#2a1f00' : '#001a00';
+      var balClr = bal <= 0 ? '#ff4444' : bal < LOW_STOCK_LIMIT ? '#ffaa00' : '#00cc44';
+      out.getRange(rn,1,1,hdrs.length).setBackground(bg).setFontColor('#e8e8d0').setFontSize(9);
+      out.getRange(rn,4).setFontColor(balClr).setFontWeight('bold').setFontSize(10);
+      out.getRange(rn,9).setFontColor(balClr).setFontWeight('bold').setHorizontalAlignment('center');
+      out.getRange(rn,2,1,3).setHorizontalAlignment('right');
+    }
+    // Totals row
+    var tr = 5 + rows.length + 1;
+    out.getRange(tr,1,1,hdrs.length).setValues([[
+      'TOTAL ('+rows.length+' types)', totP, totD, totB, '','','','',''
+    ]]);
+    out.getRange(tr,1,1,hdrs.length)
+      .setBackground('#1a1400').setFontColor('#f0c842')
+      .setFontWeight('bold').setFontSize(10);
+    out.getRange(tr,4).setFontColor(totB > 0 ? '#00cc44' : '#ff4444');
+    out.getRange(tr,2,1,3).setHorizontalAlignment('right');
+    // Legend
+    out.getRange(tr+2,1,1,hdrs.length).merge()
+      .setValue('🟢 IN STOCK  |  🟡 LOW STOCK (< '+LOW_STOCK_LIMIT+' pcs)  |  🔴 FULLY DISPATCHED')
+      .setFontColor('#999977').setFontSize(8);
+  }
+
+  [200,120,130,120,110,115,160,115,125].forEach(function(w,i){ out.setColumnWidth(i+1,w); });
+  out.setFrozenRows(4);
+  ss.setActiveSheet(out);
+
+  SpreadsheetApp.getUi().alert(
+    '✅ Buffer Stock Updated!\n\n' +
+    '📦 Buffer types: ' + rows.length + '\n' +
+    '🔨 Total Punched: ' + totP.toLocaleString() + ' pcs\n' +
+    '🚚 Total Dispatched: ' + totD.toLocaleString() + ' pcs\n' +
+    '📐 Balance Stock: ' + totB.toLocaleString() + ' pcs\n\n' +
+    'Synced: ' + ts + ' IST'
+  );
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  AUTO-REFRESH
+// ══════════════════════════════════════════════════════════════════
+function setHourlyTrigger() {
+  removeAllTriggers();
+  ScriptApp.newTrigger('updateBufferStock').timeBased().everyHours(1).create();
+  SpreadsheetApp.getUi().alert('⏰ Auto-refresh set — Buffer Stock updates every hour.');
+}
+function removeAllTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function(t){ ScriptApp.deleteTrigger(t); });
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════════
+function ensureHeaders(sheet, hdrs) {
+  var first = sheet.getRange(1,1).getValue();
+  // If row 1 is blank or has old 'ID' header, write correct headers
+  if (!first || String(first).trim().toUpperCase() === 'ID') {
+    sheet.getRange(1,1,1,hdrs.length).setValues([hdrs]);
+    sheet.getRange(1,1,1,hdrs.length)
+      .setBackground('#2d2d00').setFontColor('#f0c842')
+      .setFontWeight('bold').setFontSize(9);
+  }
+}
+
+function normaliseHeaders(row) {
+  return row.map(function(h){ return String(h).trim().toLowerCase().replace(/[\s()%\/\-]+/g,''); });
+}
+
+function colIdx(headers, candidates, fallback) {
+  for (var i = 0; i < candidates.length; i++) {
+    var idx = headers.indexOf(candidates[i]);
+    if (idx >= 0) return idx;
+  }
+  return fallback;
+}
+
+function fmtDate(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, 'Asia/Kolkata', 'dd/MM/yyyy');
+  }
+  var s = String(val).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    var p = s.substring(0,10).split('-');
+    return p[2]+'/'+p[1]+'/'+p[0];
+  }
+  return s;
+}
+
+function setCell(sheet, a1, val, bg, fg, size, bold) {
+  sheet.getRange(a1).setValue(val)
+    .setBackground(bg).setFontColor(fg)
+    .setFontSize(size).setFontWeight(bold?'bold':'normal');
+}
