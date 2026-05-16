@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LWT Entry App v2</title>
+<style>
+:root {
+  --green:#1D9E75;--green-dark:#0F6E56;--green-light:#E1F5EE;
+  --pink:#C2185B;--pink-light:#FCE4EC;
+  --yellow:#F57F17;--yellow-light:#FFF8E1;
+  --blue:#1565C0;--blue-light:#E3F2FD;
+  --red:#B71C1C;--border:#D3D1C7;
+  --text:#2C2C2A;--text-muted:#888780;--bg:#F0F0EC;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+.header{background:linear-gradient(135deg,#0F6E56,#1D9E75);color:white;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.h-title{font-size:16px;font-weight:700;}
+.h-sub{font-size:11px;opacity:0.8;}
+.cloud-pill{background:rgba(255,255,255,0.2);border-radius:20px;padding:5px 11px;font-size:11px;display:flex;align-items:center;gap:5px;}
+.cloud-dot{width:6px;height:6px;border-radius:50%;background:#9FE1CB;animation:pulse 2s infinite;}
+.cloud-dot.off{background:#F09595;animation:none;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+.op-bar{background:white;padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.op-bar label{font-size:12px;color:var(--text-muted);font-weight:600;white-space:nowrap;}
+.op-select{flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;background:white;}
+.op-select:focus{outline:none;border-color:var(--green);}
+
+.date-bar{background:white;padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.date-bar label{font-size:12px;color:var(--text-muted);font-weight:600;}
+.date-bar input[type=date]{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;}
+.date-bar input:focus{outline:none;border-color:var(--green);}
+.dpill{padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1.5px solid var(--border);background:white;color:var(--text-muted);font-weight:500;white-space:nowrap;}
+.dpill.act{background:var(--green-light);border-color:var(--green);color:var(--green-dark);}
+
+.main-pad{padding:16px;}
+.sec-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:12px;}
+
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.mbtn{border:none;border-radius:14px;padding:22px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.10);transition:transform .1s;}
+.mbtn:active{transform:scale(.95);}
+.mbtn .icon{font-size:34px;}
+.mbtn .tamil{font-size:15px;font-weight:700;}
+.mbtn .eng{font-size:11px;opacity:.7;}
+.g{background:var(--green-light);color:var(--green-dark);border:2px solid var(--green);}
+.p{background:var(--pink-light);color:var(--pink);border:2px solid var(--pink);}
+.y{background:var(--yellow-light);color:var(--yellow);border:2px solid var(--yellow);}
+.b{background:var(--blue-light);color:var(--blue);border:2px solid var(--blue);}
+
+.log-box{background:white;border-radius:12px;border:1px solid var(--border);overflow:hidden;}
+.log-head{padding:10px 14px;font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border);}
+.log-item{padding:10px 14px;border-bottom:.5px solid var(--border);font-size:13px;}
+.log-item:last-child{border-bottom:none;}
+.log-top{font-weight:600;}
+.log-sub{color:var(--text-muted);font-size:11px;margin-top:2px;}
+.log-empty{padding:16px;text-align:center;color:var(--text-muted);font-size:13px;}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:flex-end;}
+.overlay.open{display:flex;}
+.mbox{background:white;border-radius:20px 20px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:20px 18px 36px;}
+.handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;}
+.m-title{font-size:18px;font-weight:700;margin-bottom:2px;}
+.m-sub{font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.field label{font-size:12px;font-weight:700;color:var(--text-muted);}
+.field input,.field select,.field textarea{padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;color:var(--text);background:white;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.1);}
+.field textarea{resize:none;min-height:56px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+.shifts{display:flex;gap:8px;}
+.spill{flex:1;padding:10px;border:1.5px solid var(--border);border-radius:10px;text-align:center;cursor:pointer;font-size:13px;font-weight:700;background:white;color:var(--text-muted);}
+.spill.sel{background:var(--green-light);border-color:var(--green);color:var(--green-dark);}
+
+.calc-box{background:var(--green-light);border:1px solid var(--green);border-radius:10px;padding:10px 13px;font-size:13px;color:var(--green-dark);font-weight:600;margin-bottom:14px;display:none;}
+
+.sbtn{width:100%;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;transition:opacity .15s;}
+.sbtn:active{opacity:.85;}
+.sbtn.g{background:var(--green);color:white;}
+.sbtn.p{background:var(--pink);color:white;}
+.sbtn.y{background:var(--yellow);color:white;}
+.sbtn.b{background:var(--blue);color:white;}
+.cbtn{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;margin-top:8px;background:white;color:var(--text-muted);}
+
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--text);color:white;padding:12px 24px;border-radius:30px;font-size:14px;font-weight:700;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+.toast.ok{background:var(--green-dark);}
+.toast.err{background:var(--red);}
+
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.add-box{display:none;background:var(--green-light);border:1.5px solid var(--green);border-radius:10px;padding:10px 12px;margin-top:8px;gap:8px;align-items:center;}
+.add-box.open{display:flex;}
+.add-box input{flex:1;padding:9px 12px;border:1.5px solid var(--green);border-radius:8px;font-size:15px;}
+.add-box button{padding:9px 14px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;}
+.add-ok{background:var(--green);color:white;}
+.add-cancel{background:white;color:var(--text-muted);border:1.5px solid var(--border)!important;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <span style="font-size:26px;">🍯</span>
+    <div><div class="h-title">LWT Entry App v2</div><div class="h-sub">Light Weight Technology Pvt Ltd</div></div>
+  </div>
+  <div class="cloud-pill">
+    <div class="cloud-dot" id="cDot"></div>
+    <span id="cLabel">இணைக்கிறது...</span>
+  </div>
+</div>
+
+<div class="op-bar">
+  <label>👤 பெயர்:</label>
+  <select class="op-select" id="opSel" onchange="saveOp()">
+    <option value="">— பெயரை தேர்ந்தெடுக்கவும் —</option>
+    <option value="Radha Raghu">Radha Raghu — Team Leader</option>
+    <option value="Sunder">Sunder — Technician</option>
+    <option value="Honeycomb Martin">Honeycomb Martin — CEO</option>
+  </select>
+</div>
+
+<div class="date-bar">
+  <label>📅</label>
+  <input type="date" id="gDate">
+  <span class="dpill act" id="todayPill" onclick="setToday()">இன்று</span>
+  <span class="dpill" onclick="setYesterday()">நேற்று</span>
+</div>
+
+<div class="main-pad">
+  <div class="sec-label">என்ன பதிவு செய்ய வேண்டும்?</div>
+  <div class="btn-grid">
+    <button class="mbtn g" onclick="open_('hc')">
+      <span class="icon">📦</span>
+      <span class="tamil">HC Core</span>
+      <span class="eng">HC Core Received</span>
+    </button>
+    <button class="mbtn p" onclick="open_('board')">
+      <span class="icon">🪵</span>
+      <span class="tamil">போர்டு</span>
+      <span class="eng">Board Making</span>
+    </button>
+    <button class="mbtn y" onclick="open_('buf')">
+      <span class="icon">🔲</span>
+      <span class="tamil">பஃபர்</span>
+      <span class="eng">Buffer Punching</span>
+    </button>
+    <button class="mbtn b" onclick="open_('disp')">
+      <span class="icon">🚚</span>
+      <span class="tamil">அனுப்புதல்</span>
+      <span class="eng">Dispatch</span>
+    </button>
+  </div>
+
+  <div class="log-box">
+    <div class="log-head">📋 இன்றைய பதிவுகள்</div>
+    <div id="logList"><div class="log-empty">இன்னும் பதிவு இல்லை</div></div>
+  </div>
+</div>
+
+<!-- ══ HC CORE MODAL ══ -->
+<div class="overlay" id="o-hc">
+  <div class="mbox">
+    <div class="handle"></div>
+    <div class="m-title" style="color:var(--green-dark);">📦 HC Core வரவு</div>
+    <div class="m-sub">HC Core Received</div>
+
+    <div class="row2">
+      <div class="field">
+        <label>📏 Cell அளவு</label>
+        <select id="hc_cell">
+          <option value="15mm">15mm Cell</option>
+          <option value="21mm">21mm Cell</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>📐 தடிமன் (mm)</label>
+        <select id="hc_thick">
+          <option>15</option><option>20</option><option>25</option>
+          <option selected>30</option><option>35</option><option>40</option><option>50</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>📦 அளவு (Boards / RM)</label>
+      <input type="number" id="hc_qty" placeholder="0" inputmode="numeric">
+    </div>
+    <button class="sbtn g" id="hc_btn" onclick="saveHC()">☁️ சேமிக்கவும்</button>
+    <button class="cbtn" onclick="close_('hc')">ரத்து செய்</button>
+  </div>
+</div>
+
+<!-- ══ BOARD MODAL ══ -->
+<div class="overlay" id="o-board">
+  <div class="mbox">
+    <div class="handle"></div>
+    <div class="m-title" style="color:var(--pink);">🪵 Board உற்பத்தி</div>
+    <div class="m-sub">Board Production Entry</div>
+
+    <div class="field">
+      <label>⏰ Shift</label>
+      <div class="shifts">
+        <div class="spill sel" onclick="selS('board',1,this)">S1<br><small style="font-size:10px;font-weight:400;">காலை</small></div>
+        <div class="spill" onclick="selS('board',2,this)">S2<br><small style="font-size:10px;font-weight:400;">மதியம்</small></div>
+        <div class="spill" onclick="selS('board',3,this)">S3<br><small style="font-size:10px;font-weight:400;">இரவு</small></div>
+      </div>
+      <input type="hidden" id="board_shift" value="1">
+    </div>
+
+    <div class="field">
+      <label>📏 Cell அளவு</label>
+      <select id="board_cell" onchange="calcRM()">
+        <option value="15mm" data-rate="3.3">15mm Cell (3.3 RM)</option>
+        <option value="21mm" data-rate="2.8">21mm Cell (2.8 RM)</option>
+      </select>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>📐 தடிமன் (mm)</label>
+        <select id="board_thick">
+          <option>15</option><option>20</option><option>25</option>
+          <option selected>30</option><option>35</option><option>40</option><option>50</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>🪵 செய்த Boards</label>
+        <input type="number" id="board_count" placeholder="0" inputmode="numeric" oninput="calcRM()">
+      </div>
+    </div>
+
+    <div class="calc-box" id="rm_calc">🧮 HC Core பயன்படுத்தியது: <span id="rm_val">—</span> RM</div>
+    <button class="sbtn p" id="board_btn" onclick="saveBoard()">☁️ சேமிக்கவும்</button>
+    <button class="cbtn" onclick="close_('board')">ரத்து செய்</button>
+  </div>
+</div>
+
+<!-- ══ BUFFER MODAL ══ -->
+<div class="overlay" id="o-buf">
+  <div class="mbox">
+    <div class="handle"></div>
+    <div class="m-title" style="color:var(--yellow);">🔲 Buffer Punching</div>
+    <div class="m-sub">பஃபர் உற்பத்தி பதிவு</div>
+
+    <div class="field">
+      <label>⏰ Shift</label>
+      <div class="shifts">
+        <div class="spill sel" onclick="selS('buf',1,this)">S1<br><small style="font-size:10px;font-weight:400;">காலை</small></div>
+        <div class="spill" onclick="selS('buf',2,this)">S2<br><small style="font-size:10px;font-weight:400;">மதியம்</small></div>
+        <div class="spill" onclick="selS('buf',3,this)">S3<br><small style="font-size:10px;font-weight:400;">இரவு</small></div>
+      </div>
+      <input type="hidden" id="buf_shift" value="1">
+    </div>
+
+    <div class="field">
+      <label>📦 Buffer வகை</label>
+      <div style="display:flex;gap:8px;">
+        <select id="buf_type" style="flex:1;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;background:white;">
+          <option>TOP</option><option>BOTTOM</option><option>CORNER</option>
+          <option>FRONT &amp; BACK</option><option>FRONT &amp; BACK 30MM</option>
+          <option>STANADYNE BUFFER</option><option>DIVINE BUFFER</option>
+          <option>Inner Buffer</option><option>Joompac</option>
+        </select>
+        <button onclick="toggleAddBox('add-buf-type')" style="padding:0 14px;border:1.5px solid var(--yellow);border-radius:10px;background:var(--yellow-light);color:var(--yellow);font-size:20px;cursor:pointer;font-weight:700;">+</button>
+      </div>
+      <div class="add-box" id="add-buf-type">
+        <input type="text" id="new-buf-type" placeholder="புதிய Buffer வகை பெயர்...">
+        <button class="add-ok" onclick="confirmAdd('buf_type','new-buf-type','add-buf-type')">✓</button>
+        <button class="add-cancel" onclick="toggleAddBox('add-buf-type')">✕</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>🏢 வாடிக்கையாளர்</label>
+      <div style="display:flex;gap:8px;">
+        <select id="buf_cust" style="flex:1;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;background:white;">
+          <option value="">— தேர்ந்தெடுக்கவும் —</option>
+          <option>Butterfly Gandhimathi</option><option>Stanadyne India</option>
+          <option>Nefab India</option><option>MGM Varvel Power</option>
+          <option>Divine Foods</option><option>Poly Mak</option>
+          <option>KCIPL</option><option>Agilitive</option><option>Agrifacuture India</option>
+        </select>
+        <button onclick="toggleAddBox('add-buf-cust')" style="padding:0 14px;border:1.5px solid var(--yellow);border-radius:10px;background:var(--yellow-light);color:var(--yellow);font-size:20px;cursor:pointer;font-weight:700;">+</button>
+      </div>
+      <div class="add-box" id="add-buf-cust">
+        <input type="text" id="new-buf-cust" placeholder="புதிய வாடிக்கையாளர் பெயர்...">
+        <button class="add-ok" onclick="confirmAdd('buf_cust','new-buf-cust','add-buf-cust')">✓</button>
+        <button class="add-cancel" onclick="toggleAddBox('add-buf-cust')">✕</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>✅ செய்தது (Pcs)</label>
+      <input type="number" id="buf_pcs" placeholder="0" inputmode="numeric">
+    </div>
+    <button class="sbtn y" id="buf_btn" onclick="saveBuf()">☁️ சேமிக்கவும்</button>
+    <button class="cbtn" onclick="close_('buf')">ரத்து செய்</button>
+  </div>
+</div>
+
+<!-- ══ DISPATCH MODAL ══ -->
+<div class="overlay" id="o-disp">
+  <div class="mbox">
+    <div class="handle"></div>
+    <div class="m-title" style="color:var(--blue);">🚚 Dispatch அனுப்புதல்</div>
+    <div class="m-sub">பொருள் வெளியேற்றம்</div>
+
+    <div class="field">
+      <label>🏢 வாடிக்கையாளர்</label>
+      <div style="display:flex;gap:8px;">
+        <select id="disp_cust" style="flex:1;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;background:white;">
+          <option value="">— தேர்ந்தெடுக்கவும் —</option>
+          <option>Butterfly Gandhimathi</option><option>Stanadyne India</option>
+          <option>Nefab India</option><option>MGM Varvel Power</option>
+          <option>Divine Foods</option><option>Poly Mak</option>
+          <option>KCIPL</option><option>Agilitive</option><option>Agrifacuture India</option>
+        </select>
+        <button onclick="toggleAddBox('add-disp-cust')" style="padding:0 14px;border:1.5px solid var(--blue);border-radius:10px;background:var(--blue-light);color:var(--blue);font-size:20px;cursor:pointer;font-weight:700;">+</button>
+      </div>
+      <div class="add-box" id="add-disp-cust">
+        <input type="text" id="new-disp-cust" placeholder="புதிய வாடிக்கையாளர் பெயர்...">
+        <button class="add-ok" onclick="confirmAdd('disp_cust','new-disp-cust','add-disp-cust')">✓</button>
+        <button class="add-cancel" onclick="toggleAddBox('add-disp-cust')">✕</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>📦 Buffer வகை / பொருள்</label>
+      <div style="display:flex;gap:8px;">
+        <select id="disp_type" style="flex:1;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;background:white;">
+          <option>TOP</option><option>BOTTOM</option><option>CORNER</option>
+          <option>FRONT &amp; BACK</option><option>FRONT &amp; BACK 30MM</option>
+          <option>STANADYNE BUFFER</option><option>DIVINE BUFFER</option>
+          <option>Inner Buffer</option><option>Joompac</option>
+          <option>HC Core Board</option>
+        </select>
+        <button onclick="toggleAddBox('add-disp-type')" style="padding:0 14px;border:1.5px solid var(--blue);border-radius:10px;background:var(--blue-light);color:var(--blue);font-size:20px;cursor:pointer;font-weight:700;">+</button>
+      </div>
+      <div class="add-box" id="add-disp-type">
+        <input type="text" id="new-disp-type" placeholder="புதிய Buffer வகை பெயர்...">
+        <button class="add-ok" onclick="confirmAdd('disp_type','new-disp-type','add-disp-type')">✓</button>
+        <button class="add-cancel" onclick="toggleAddBox('add-disp-type')">✕</button>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>🔢 அளவு (Qty)</label>
+        <input type="number" id="disp_qty" placeholder="0" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>அலகு</label>
+        <select id="disp_unit">
+          <option>pcs</option><option>boards</option><option>sqm</option>
+        </select>
+      </div>
+    </div>
+    <button class="sbtn b" id="disp_btn" onclick="saveDisp()">☁️ சேமிக்கவும்</button>
+    <button class="cbtn" onclick="close_('disp')">ரத்து செய்</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = 'https://odgjsalibpqcyjtjyouy.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kZ2pzYWxpYnBxY3lqdGp5b3V5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MDgxMzMsImV4cCI6MjA5NDM4NDEzM30.1qrk9UKYxlRsft9aUcB5uX2x723YLWQwYag4RnR_pqU';
+const H = {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+
+// ── Helpers ──
+function isoToday(){return new Date().toISOString().split('T')[0];}
+function isoToDDMMYYYY(iso){if(!iso)return today();const[y,m,d]=iso.split('-');return `${d}/${m}/${y}`;}
+function today(){const d=new Date();return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
+function getDate(){return isoToDDMMYYYY(document.getElementById('gDate').value)||today();}
+function getOp(){return document.getElementById('opSel').value;}
+function setToday(){document.getElementById('gDate').value=isoToday();document.getElementById('todayPill').classList.add('act');}
+function setYesterday(){const d=new Date();d.setDate(d.getDate()-1);document.getElementById('gDate').value=d.toISOString().split('T')[0];document.getElementById('todayPill').classList.remove('act');}
+
+function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.className='toast',3000);}
+
+function selS(pfx,val,el){el.closest('.shifts').querySelectorAll('.spill').forEach(p=>p.classList.remove('sel'));el.classList.add('sel');document.getElementById(pfx+'_shift').value=val;}
+
+function open_(id){if(!getOp()){toast('⚠️ முதலில் உங்கள் பெயரை தேர்ந்தெடுக்கவும்!','err');return;}document.getElementById('o-'+id).classList.add('open');}
+function close_(id){document.getElementById('o-'+id).classList.remove('open');}
+document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+
+function saveOp(){localStorage.setItem('lwt_op2',getOp());}
+
+// HC Core RM auto-calc
+function calcRM(){
+  const boards=parseInt(document.getElementById('board_count').value)||0;
+  const sel=document.getElementById('board_cell');
+  const rate=parseFloat(sel.options[sel.selectedIndex].dataset.rate)||3.3;
+  const rm=(boards*rate).toFixed(1);
+  const box=document.getElementById('rm_calc');
+  if(boards>0){box.style.display='block';document.getElementById('rm_val').textContent=rm+' RM';}
+  else{box.style.display='none';}
+}
+
+// ── Supabase insert ──
+async function sbPost(table,data){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...H,'Prefer':'return=minimal'},body:JSON.stringify(data)});
+  if(!r.ok){const t=await r.text();throw new Error(t);}
+}
+
+// ── Recent log ──
+const logs=[];
+function addLog(icon,top,sub){
+  logs.unshift({icon,top,sub,time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})});
+  document.getElementById('logList').innerHTML=logs.slice(0,10).map(l=>`
+    <div class="log-item">
+      <div class="log-top">${l.icon} ${l.top}</div>
+      <div class="log-sub">${l.sub} · ${l.time}</div>
+    </div>`).join('');
+}
+
+// ── SAVE HC CORE ──
+async function saveHC(){
+  const qty=parseFloat(document.getElementById('hc_qty').value)||0;
+  if(!qty){toast('⚠️ அளவை உள்ளிடவும்','err');return;}
+  const btn=document.getElementById('hc_btn');
+  btn.innerHTML='<span class="spin"></span>சேமிக்கிறது...';btn.disabled=true;
+  try{
+    await sbPost('hc_core_stock',{
+      entry_date:getDate(),
+      cell_size:document.getElementById('hc_cell').value,
+      thickness_mm:parseInt(document.getElementById('hc_thick').value),
+      quantity:qty,
+      operator_name:getOp()
+    });
+    toast('✅ HC Core பதிவு சேமிக்கப்பட்டது!','ok');
+    addLog('📦',`HC Core ${document.getElementById('hc_cell').value} ${document.getElementById('hc_thick').value}mm`,`${qty} boards · ${getOp()}`);
+    document.getElementById('hc_qty').value='';
+    close_('hc');
+  }catch(e){toast('❌ பிழை: '+e.message,'err');}
+  btn.innerHTML='☁️ சேமிக்கவும்';btn.disabled=false;
+}
+
+// ── SAVE BOARD ──
+async function saveBoard(){
+  const boards=parseInt(document.getElementById('board_count').value)||0;
+  if(!boards){toast('⚠️ Board எண்ணிக்கையை உள்ளிடவும்','err');return;}
+  const btn=document.getElementById('board_btn');
+  btn.innerHTML='<span class="spin"></span>சேமிக்கிறது...';btn.disabled=true;
+  const cell=document.getElementById('board_cell').value;
+  const thick=document.getElementById('board_thick').value;
+  const shift=document.getElementById('board_shift').value;
+  const sel=document.getElementById('board_cell');
+  const rate=parseFloat(sel.options[sel.selectedIndex].dataset.rate)||3.3;
+  try{
+    await sbPost('daily_production',{
+      entry_date:getDate(),
+      shift:parseInt(shift),
+      cell_size:cell,
+      thickness_mm:parseInt(thick),
+      boards_produced:boards,
+      hc_core_used:parseFloat((boards*rate).toFixed(1)),
+      product_type:'HC Core Board',
+      operator_name:getOp()
+    });
+    toast('✅ Board பதிவு சேமிக்கப்பட்டது!','ok');
+    addLog('🪵',`${boards} boards · S${shift}`,`${cell} ${thick}mm · ${getOp()}`);
+    document.getElementById('board_count').value='';
+    document.getElementById('rm_calc').style.display='none';
+    close_('board');
+  }catch(e){toast('❌ பிழை: '+e.message,'err');}
+  btn.innerHTML='☁️ சேமிக்கவும்';btn.disabled=false;
+}
+
+// ── PERSISTENT CUSTOM OPTIONS ──
+const STORE = {
+  'buf_type':'lwt_buf_types','buf_cust':'lwt_buf_custs',
+  'disp_cust':'lwt_disp_custs','disp_type':'lwt_disp_types'
+};
+function loadCustomOptions(selectId){
+  const key=STORE[selectId]; if(!key) return;
+  const saved=JSON.parse(localStorage.getItem(key)||'[]');
+  const sel=document.getElementById(selectId);
+  saved.forEach(name=>{
+    if(![...sel.options].some(o=>o.value===name)){
+      const opt=document.createElement('option');
+      opt.value=name;opt.textContent=name;sel.appendChild(opt);
+    }
+  });
+}
+function toggleAddBox(boxId){
+  const box=document.getElementById(boxId);
+  box.classList.toggle('open');
+  // Clear input when opening
+  const inp=box.querySelector('input');
+  if(box.classList.contains('open')){inp.value='';setTimeout(()=>inp.focus(),100);}
+}
+function confirmAdd(selectId,inputId,boxId){
+  const clean=document.getElementById(inputId).value.trim();
+  if(!clean){toast('⚠️ பெயர் உள்ளிடவும்','err');return;}
+  const sel=document.getElementById(selectId);
+  if(![...sel.options].some(o=>o.value===clean)){
+    const opt=document.createElement('option');
+    opt.value=clean;opt.textContent=clean;sel.appendChild(opt);
+  }
+  sel.value=clean;
+  const key=STORE[selectId];
+  if(key){
+    const saved=JSON.parse(localStorage.getItem(key)||'[]');
+    if(!saved.includes(clean)){saved.push(clean);localStorage.setItem(key,JSON.stringify(saved));}
+  }
+  toggleAddBox(boxId);
+  toast(`✅ "${clean}" சேர்க்கப்பட்டது!`,'ok');
+}
+
+// ── SAVE BUFFER ──
+async function saveBuf(){
+  const pcs=parseInt(document.getElementById('buf_pcs').value)||0;
+  if(!pcs){toast('⚠️ Pieces எண்ணிக்கையை உள்ளிடவும்','err');return;}
+  const btn=document.getElementById('buf_btn');
+  btn.innerHTML='<span class="spin"></span>சேமிக்கிறது...';btn.disabled=true;
+  const btype=document.getElementById('buf_type').value;
+  const shift=document.getElementById('buf_shift').value;
+  try{
+    await sbPost('buffer_punching',{
+      entry_date:getDate(),
+      shift:parseInt(shift),
+      buffer_type:btype,
+      customer:document.getElementById('buf_cust').value||null,
+      pieces_produced:pcs,
+      operator_name:getOp()
+    });
+    toast('✅ Buffer பதிவு சேமிக்கப்பட்டது!','ok');
+    addLog('🔲',`${btype} · ${pcs.toLocaleString()} pcs · S${shift}`,getOp());
+    document.getElementById('buf_pcs').value='';
+    close_('buf');
+  }catch(e){toast('❌ பிழை: '+e.message,'err');}
+  btn.innerHTML='☁️ சேமிக்கவும்';btn.disabled=false;
+}
+
+// ── SAVE DISPATCH ──
+async function saveDisp(){
+  const qty=parseInt(document.getElementById('disp_qty').value)||0;
+  const cust=document.getElementById('disp_cust').value;
+  if(!qty||!cust){toast('⚠️ வாடிக்கையாளர் மற்றும் அளவை உள்ளிடவும்','err');return;}
+  const btn=document.getElementById('disp_btn');
+  btn.innerHTML='<span class="spin"></span>சேமிக்கிறது...';btn.disabled=true;
+  try{
+    await sbPost('dispatch_log',{
+      dispatch_date:getDate(),
+      customer:cust,
+      product_description:document.getElementById('disp_type').value,
+      quantity:qty,
+      unit:document.getElementById('disp_unit').value,
+      operator_name:getOp()
+    });
+    toast('✅ Dispatch சேமிக்கப்பட்டது!','ok');
+    addLog('🚚',`${cust} · ${qty.toLocaleString()} ${document.getElementById('disp_unit').value}`,getOp());
+    document.getElementById('disp_qty').value='';
+    close_('disp');
+  }catch(e){toast('❌ பிழை: '+e.message,'err');}
+  btn.innerHTML='☁️ சேமிக்கவும்';btn.disabled=false;
+}
+
+// ── Cloud status ──
+async function checkCloud(){
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/buffer_punching?limit=1`,{headers:H});
+    const ok=r.ok;
+    document.getElementById('cDot').className='cloud-dot'+(ok?'':' off');
+    document.getElementById('cLabel').textContent=ok?'🟢 Live':'❌ Offline';
+  }catch(e){document.getElementById('cDot').className='cloud-dot off';document.getElementById('cLabel').textContent='❌ Offline';}
+}
+
+// ── INIT ──
+function init(){
+  setToday();
+  const op=localStorage.getItem('lwt_op2');
+  if(op)document.getElementById('opSel').value=op;
+  // Load saved custom options for all dropdowns
+  ['buf_type','buf_cust','disp_cust','disp_type'].forEach(loadCustomOptions);
+  checkCloud();
+}
+init();
+</script>
+</body>
+</html>
